@@ -381,7 +381,10 @@ void SceneManager::PrepareScene()
 	// loaded in memory no matter how many times it is drawn
 	// in the rendered 3D scene
 
+	// load the plane mesh for the ground/base of the scene
 	m_basicMeshes->LoadPlaneMesh();
+	// load the box mesh for the 3D object sitting on the plane
+	m_basicMeshes->LoadBoxMesh();
 }
 
 /***********************************************************
@@ -399,22 +402,17 @@ void SceneManager::RenderScene()
 	float ZrotationDegrees = 0.0f;
 	glm::vec3 positionXYZ;
 
-	/*** Set needed transformations before drawing the basic mesh.  ***/
-	/*** This same ordering of code should be used for transforming ***/
-	/*** and drawing all the basic 3D shapes.						***/
+	/*** Draw the ground plane ***/
+	// This flat plane serves as the base/floor of the 3D scene.
+	// It is positioned at Y=0 and scaled large enough to establish
+	// the world space beneath all other objects in the scene.
 	/******************************************************************/
-	// set the XYZ scale for the mesh
 	scaleXYZ = glm::vec3(20.0f, 1.0f, 10.0f);
-
-	// set the XYZ rotation for the mesh
 	XrotationDegrees = 0.0f;
 	YrotationDegrees = 0.0f;
 	ZrotationDegrees = 0.0f;
-
-	// set the XYZ position for the mesh
 	positionXYZ = glm::vec3(0.0f, 0.0f, 0.0f);
 
-	// set the transformations into memory to be used on the drawn meshes
 	SetTransformations(
 		scaleXYZ,
 		XrotationDegrees,
@@ -422,9 +420,33 @@ void SceneManager::RenderScene()
 		ZrotationDegrees,
 		positionXYZ);
 
-	SetShaderColor(1, 1, 1, 1);
+	// dark gray color for the ground plane
+	SetShaderColor(0.4f, 0.4f, 0.4f, 1.0f);
 
-	// draw the mesh with transformation values
 	m_basicMeshes->DrawPlaneMesh();
+	/****************************************************************/
+
+	/*** Draw a 3D box sitting on the ground plane ***/
+	// This box represents a simple object placed on the scene's
+	// base plane. It is positioned so its bottom rests on Y=0.
+	/******************************************************************/
+	scaleXYZ = glm::vec3(2.0f, 2.0f, 2.0f);
+	XrotationDegrees = 0.0f;
+	YrotationDegrees = 25.0f;
+	ZrotationDegrees = 0.0f;
+	// box mesh is centered at origin, so raise it by half its height
+	positionXYZ = glm::vec3(0.0f, 1.0f, 0.0f);
+
+	SetTransformations(
+		scaleXYZ,
+		XrotationDegrees,
+		YrotationDegrees,
+		ZrotationDegrees,
+		positionXYZ);
+
+	// teal color for the box so it stands out from the ground
+	SetShaderColor(0.2f, 0.7f, 0.7f, 1.0f);
+
+	m_basicMeshes->DrawBoxMesh();
 	/****************************************************************/
 }

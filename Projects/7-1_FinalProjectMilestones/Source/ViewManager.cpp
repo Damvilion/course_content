@@ -107,6 +107,10 @@ GLFWwindow* ViewManager::CreateDisplayWindow(const char* windowTitle)
 	// this callback is used to receive mouse moving events
 	glfwSetCursorPosCallback(window, &ViewManager::Mouse_Position_Callback);
 
+	// this callback is used to receive mouse scroll events
+	// scrolling adjusts the camera movement speed
+	glfwSetScrollCallback(window, &ViewManager::Mouse_Scroll_Callback);
+
 	// enable blending for supporting tranparent rendering
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -147,6 +151,20 @@ void ViewManager::Mouse_Position_Callback(GLFWwindow* window, double xMousePos, 
 }
 
 /***********************************************************
+ *  Mouse_Scroll_Callback()
+ *
+ *  This method is automatically called from GLFW whenever
+ *  the mouse scroll wheel is used within the active GLFW
+ *  display window. Scrolling up increases the camera
+ *  movement speed, scrolling down decreases it.
+ ***********************************************************/
+void ViewManager::Mouse_Scroll_Callback(GLFWwindow* window, double xOffset, double yOffset)
+{
+	// adjust camera movement speed based on scroll direction
+	g_pCamera->ProcessMouseScroll(yOffset);
+}
+
+/***********************************************************
  *  ProcessKeyboardEvents()
  *
  *  This method is called to process any keyboard events
@@ -179,6 +197,27 @@ void ViewManager::ProcessKeyboardEvents()
 	{
 		g_pCamera->ProcessKeyboard(RIGHT, gDeltaTime);
 	}
+
+	// process camera moving up and down
+	if (glfwGetKey(m_pWindow, GLFW_KEY_Q) == GLFW_PRESS)
+	{
+		g_pCamera->ProcessKeyboard(DOWN, gDeltaTime);
+	}
+	if (glfwGetKey(m_pWindow, GLFW_KEY_E) == GLFW_PRESS)
+	{
+		g_pCamera->ProcessKeyboard(UP, gDeltaTime);
+	}
+
+	// switch to perspective projection when P is pressed
+	if (glfwGetKey(m_pWindow, GLFW_KEY_P) == GLFW_PRESS)
+	{
+		bOrthographicProjection = false;
+	}
+	// switch to orthographic projection when O is pressed
+	if (glfwGetKey(m_pWindow, GLFW_KEY_O) == GLFW_PRESS)
+	{
+		bOrthographicProjection = true;
+	}
 }
 
 /***********************************************************
@@ -205,15 +244,45 @@ void ViewManager::PrepareSceneView()
 	// get the current view matrix from the camera
 	view = g_pCamera->GetViewMatrix();
 
-	// define the current projection matrix
-	projection = glm::perspective(glm::radians(g_pCamera->Zoom), (GLfloat)WINDOW_WIDTH / (GLfloat)WINDOW_HEIGHT, 0.1f, 100.0f);
+	// build the projection matrix based on the active projection mode
+	if (bOrthographicProjection)
+	{
+		// orthographic projection: objects appear the same size regardless of distance
+		// the view looks straight at the scene from the front so the ground plane
+		// is edge-on and not visible
+		float orthoScale = 10.0f;
+		float aspect = (GLfloat)WINDOW_WIDTH / (GLfloat)WINDOW_HEIGHT;
+		projection = glm::ortho(
+			-orthoScale * aspect,  // left
+			 orthoScale * aspect,  // right
+			-orthoScale,           // bottom
+			 orthoScale,           // top
+			 0.1f,                 // near
+			 100.0f);              // far
+
+		// override the view to look straight at the scene from the front
+		// this hides the ground plane since it is edge-on from this angle
+		view = glm::lookAt(
+			glm::vec3(0.0f, 0.0f, 20.0f),   // camera position: straight in front
+			glm::vec3(0.0f, 0.0f, 0.0f),     // look at the origin
+			glm::vec3(0.0f, 1.0f, 0.0f));    // up vector
+	}
+	else
+	{
+		// perspective projection: closer objects appear larger (normal 3D view)
+		projection = glm::perspective(
+			glm::radians(g_pCamera->Zoom),
+			(GLfloat)WINDOW_WIDTH / (GLfloat)WINDOW_HEIGHT,
+			0.1f,
+			100.0f);
+	}
 
 	// if the shader manager object is valid
 	if (NULL != m_pShaderManager)
 	{
 		// set the view matrix into the shader for proper rendering
 		m_pShaderManager->setMat4Value(g_ViewName, view);
-		// set the view matrix into the shader for proper rendering
+		// set the projection matrix into the shader for proper rendering
 		m_pShaderManager->setMat4Value(g_ProjectionName, projection);
 		// set the view position of the camera into the shader for proper rendering
 		m_pShaderManager->setVec3Value("viewPosition", g_pCamera->Position);

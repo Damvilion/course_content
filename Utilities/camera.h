@@ -122,10 +122,13 @@ public:
         updateCameraVectors();
     }
 
-    // processes input received from a mouse scroll-wheel event. Only requires input on the vertical wheel-axis
+    // processes input received from a mouse scroll-wheel event.
+    // Scrolling up (positive yoffset) increases movement speed,
+    // scrolling down (negative yoffset) decreases it.
+    // Speed is clamped between 0.1 and 45.0 to stay usable.
     void ProcessMouseScroll(float yoffset)
     {
-        MovementSpeed -= (float)yoffset;
+        MovementSpeed += (float)yoffset;
         if (MovementSpeed < 0.1f)
             MovementSpeed = 0.1f;
         if (MovementSpeed > 45.0f)

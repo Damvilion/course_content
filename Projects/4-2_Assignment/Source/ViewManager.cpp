@@ -28,12 +28,17 @@ namespace
 	Camera* g_pCamera = nullptr;
 
 	// these variables are used for mouse movement processing
+	// gLastX/gLastY store the previous frame's cursor position so we can
+	// compute how far the mouse moved each frame (the offset).
 	float gLastX = WINDOW_WIDTH / 2.0f;
 	float gLastY = WINDOW_HEIGHT / 2.0f;
+	// gFirstMouse prevents a large jump on the very first mouse-move event
+	// by seeding gLastX/gLastY with the initial cursor position.
 	bool gFirstMouse = true;
 
 	// time between current frame and last frame
-	float gDeltaTime = 0.0f; 
+	// deltaTime keeps movement speed consistent regardless of frame rate.
+	float gDeltaTime = 0.0f;
 	float gLastFrame = 0.0f;
 
 	// if orthographic projection is on, this value will be
@@ -102,9 +107,16 @@ GLFWwindow* ViewManager::CreateDisplayWindow(const char* windowTitle)
 	glfwMakeContextCurrent(window);
 
 	// this callback is used to receive mouse moving events
+	// whenever the mouse moves, GLFW calls Mouse_Position_Callback
+	// which updates the camera's yaw and pitch for "mouse look"
 	glfwSetCursorPosCallback(window, &ViewManager::Mouse_Position_Callback);
 
-	// tell GLFW to capture all mouse events
+	// this callback is used to receive mouse scroll wheel events
+	// scrolling adjusts the camera's movement speed (not FOV/zoom)
+	glfwSetScrollCallback(window, &ViewManager::Mouse_Scroll_Callback);
+
+	// tell GLFW to capture the cursor so it stays inside the window
+	// and hidden, which is required for continuous mouse look
 	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
 	// enable blending for supporting tranparent rendering
@@ -147,10 +159,35 @@ void ViewManager::Mouse_Position_Callback(GLFWwindow* window, double xMousePos, 
 }
 
 /***********************************************************
+ *  Mouse_Scroll_Callback()
+ *
+ *  This method is automatically called from GLFW whenever
+ *  the mouse scroll wheel is used within the active GLFW
+ *  display window. Scrolling up increases camera movement
+ *  speed, scrolling down decreases it.
+ ***********************************************************/
+void ViewManager::Mouse_Scroll_Callback(GLFWwindow* window, double xOffset, double yOffset)
+{
+	// pass the scroll offset to the camera so it can adjust
+	// its MovementSpeed. A positive yOffset (scroll up) will
+	// make the camera move faster; negative (scroll down) slows it.
+	if (NULL != g_pCamera)
+	{
+		g_pCamera->ProcessMouseScroll(static_cast<float>(yOffset));
+	}
+}
+
+/***********************************************************
  *  ProcessKeyboardEvents()
  *
  *  This method is called to process any keyboard events
  *  that may be waiting in the event queue.
+ *
+ *  WASD controls forward/backward/left/right movement
+ *  relative to where the camera is currently looking.
+ *  Q/E controls vertical movement along the world up axis.
+ *  All movement is scaled by deltaTime so it is consistent
+ *  regardless of frame rate.
  ***********************************************************/
 void ViewManager::ProcessKeyboardEvents()
 {
@@ -166,24 +203,37 @@ void ViewManager::ProcessKeyboardEvents()
 		return;
 	}
 
-	// process camera zooming in and out
+	// W key: move camera forward along its front vector (zoom in)
 	if (glfwGetKey(m_pWindow, GLFW_KEY_W) == GLFW_PRESS)
 	{
 		g_pCamera->ProcessKeyboard(FORWARD, gDeltaTime);
 	}
+	// S key: move camera backward along its front vector (zoom out)
 	if (glfwGetKey(m_pWindow, GLFW_KEY_S) == GLFW_PRESS)
 	{
 		g_pCamera->ProcessKeyboard(BACKWARD, gDeltaTime);
 	}
 
-	// process camera panning left and right
+	// A key: strafe camera to the left
 	if (glfwGetKey(m_pWindow, GLFW_KEY_A) == GLFW_PRESS)
 	{
 		g_pCamera->ProcessKeyboard(LEFT, gDeltaTime);
 	}
+	// D key: strafe camera to the right
 	if (glfwGetKey(m_pWindow, GLFW_KEY_D) == GLFW_PRESS)
 	{
 		g_pCamera->ProcessKeyboard(RIGHT, gDeltaTime);
+	}
+
+	// Q key: move camera downward along the world up axis
+	if (glfwGetKey(m_pWindow, GLFW_KEY_Q) == GLFW_PRESS)
+	{
+		g_pCamera->ProcessKeyboard(DOWN, gDeltaTime);
+	}
+	// E key: move camera upward along the world up axis
+	if (glfwGetKey(m_pWindow, GLFW_KEY_E) == GLFW_PRESS)
+	{
+		g_pCamera->ProcessKeyboard(UP, gDeltaTime);
 	}
 }
 
